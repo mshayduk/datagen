@@ -2,9 +2,19 @@ import pickle
 import time
 import random
 import csv
+import re
 import subprocess
 import shlex
+from time import gmtime, strftime
+from random import uniform, randint
 
+data_path = "./GDATA/"
+buzzwords_prob = 0.7
+toupper_prob = 0.15
+font_size = "tiny"
+font_face = "lmss"
+font_weight = "bold"
+# use only "bold" or "regular"
 
 
 def strTimeProp(start, end, format, prop):
@@ -46,12 +56,12 @@ def readcsv(fname, encoding):
         reader = csv.reader(f)
         for row in reader:
             datalines.append((" "
-            	              .join(row)
-            	              .replace(u'\xa0', u' ')
-            	              .replace("\\","\\\\")
-            	              .replace("´","\'")
-            	              .replace("_","\_"))
-            	            )
+                              .join(row)
+                              .replace(u'\xa0', u' ')
+                              .replace("\\", "\\\\")
+                              .replace("´", "\'")
+                              .replace("_", "\_"))
+                            )
     return datalines
 
 
@@ -62,7 +72,12 @@ streets = readcsv('./txt/Strassennamen.csv', encoding='utf-8')
 
 
 def generate_name():
-    s = names[randint(0, len(names)-1)] + surnames[randint(0, len(surnames)-1)]
+    if uniform(0, 1) <= 0.2:
+        s = names[randint(0, len(names)-1)] + surnames[randint(0, len(surnames)-1)]
+    else:
+        specchar = ["@", "\#", "\$", "\%", "\^", "\&", "\_", "\{", "\}", "*", "|"]
+        char = random.choice(specchar)
+        s = names[randint(0, len(names)-1)].lower().strip(" ") + char + surnames[randint(0, len(surnames)-1)].lower().strip(" ")
     return s
 
 
@@ -106,12 +121,34 @@ def set_font_size():
 # times-like: ptm, lmr
 # helvetica/arial: lmss, qhv, phv
 # typewriter: lmtt, qcr, pcr
-def make_header(font):  
-    header = (u"\\documentclass[8pt]{extarticle}\n"
-    	      "\\usepackage[T1]{fontenc}\n"
-    	      "\\usepackage[utf8]{inputenc}\n"
-    	      "\\usepackage{newunicodechar}\n"
+# latex memory problem: > kpsewhich texmf.cnf
+#                       > gedit corresponding textmf.cnf:
+#                              buf_size = 400000
+#                              main_memory = 10000000
+#                       > fmtutil-sys --all
+# textwidth tuning for different fontsizes(latex notation)
+textwidth = {"tiny": 150,
+             "scriptsize": 1.1*150,
+             "footnotesize": 1.2*150,
+             "small": 1.3*150,
+             "normalsize": 1.4*150,
+             "large": 1.5*150,
+             "Large": 1.7*150,
+             "LARGE": 1.8*150,
+             "huge": 2.0*150,
+             "Huge": 2.1*150}
+
+
+def make_header(fontface, fontsize, fontweight):
+    if fontweight == "bold":
+        fweight = "\\textbf{"
+    else:
+        fweight = "{"
+    header = (u"\\documentclass[10pt]{extarticle}\n"
+              "\\usepackage[T1]{fontenc}\n"
+              "\\usepackage[utf8]{inputenc}\n"
               "\\usepackage{verbatim}\n"
+              #"\\usepackage[none]{hyphenat} \n"
               "\\usepackage[paperheight=10.75in,paperwidth=8.25in,margin=1in,heightrounded]{geometry}\n"
               "\\geometry{textwidth=6cm}\n"
               "\\usepackage{eurosym}\n"
@@ -120,25 +157,18 @@ def make_header(font):
               "\\usepackage{tgheros}\n"
               "\\usepackage{tgcursor}\n"
               "\\usepackage{courier}\n"
-              "\\usepackage{lmodern}\n"
+              "\\usepackage{lmodern, textcomp}\n"
               "\\usepackage{helvet}\n"
-              #"\\usepackage{fontspec}\n"
-              #"\\setmainfont[Mapping=tex-text, Color=textcolor]{FreeSans}\n"
-              #"\\textwidth=6cm\n"
               "\\makeatletter\n"
               "\\newcommand{\\verbatimfont}[1]{\\def\\verbatim@font{#1}}%\n"
               "\\makeatother\n"
-              "\\pagenumbering{gobble}"
-              "\\newunicodechar{Ȳ}{\=Y}\n"
-              "\\newunicodechar{ȳ}{\=y}\n"
-              #"\\newunicodechar{Œ}{\OE}\n"
-              #"\\newunicodechar{š}{\v{s}}\n"
-              #"\\newunicodechar{š}{\v{S}}\n"
-              #"\\newunicodechar{Œ}{\OE}\n"
-              #"\\newunicodechar{Œ}{\OE}\n"
-              "\\begin{document}\n"
-              "\n \\noindent\n")
-    return header + "{\\fontfamily{" + font + "}\\selectfont\n"
+              "\\pagenumbering{gobble}\n")
+    #header = header + "\\renewcommand{\\baselinestretch}{" + str(linespace[fontsize]) + "}\n "
+    header = header + "\\renewcommand{\\baselinestretch}{1.3}\n "
+    header = header + "\\textwidth " + str(textwidth[fontsize]) + "pt \\begin{document}\n"
+    header = header + "\\begin{raggedright} {\\fontfamily{" + fontface + "}\\selectfont\n {\\" + fontsize
+    header = header + fweight
+    return header
 
 
 def make_body(bodylines):
@@ -151,7 +181,7 @@ def make_verbatim_body(bodylines, fontstring):
 
 
 def make_footer():
-    return "\n } \n\\end{document}"
+    return "\n } \n } \n } \n \\end{raggedright}\n\\end{document}"
 
 
 # randomly adds some buzz words between regular text words
@@ -161,8 +191,8 @@ def admix_buzz(prob, lines, buzz):
         linesplit = lines[ind].split(' ')
         rndind = randint(0, len(linesplit)-1)
         buzzstr = buzz[randint(0, len(buzz)-1)]
-        # add some random dates, names, addresses with 30% prob
-        if uniform(0, 1) <= 0.3:
+        # add some random dates, names, addresses with 50% prob
+        if uniform(0, 1) <= 0.6:
             buzzstr = generate_date()
             if uniform(0, 1) <= 0.5:
                 buzzstr = generate_name()
@@ -173,19 +203,32 @@ def admix_buzz(prob, lines, buzz):
         lines[ind] = " ".join(linesplit)
 
 
+def admix_specialchar(lines):
+    if uniform(0, 1) <= 0.01:
+        ind = randint(0, len(lines)-1)
+        linesplit = lines[ind].split(' ')
+        rndind = randint(0, len(linesplit)-1)
+        buzzstr = random.choice(["\\textbackslash", " \\textbackslash "])   
+        linesplit[rndind] = linesplit[rndind] + buzzstr
+        lines[ind] = " ".join(linesplit)
+
+
 def create_body_file(fbody):
     with open("./txt/keyphrases.txt", "r") as f:
         buzz = f.readlines()
     with open("./txt/BGB.txt", "r") as f:
         lines = f.readlines()
-    
+
     buzz = [b.rstrip('\n') for b in buzz]
     lines = [l.rstrip('\n') for l in lines]
     # admix keyphrases to text
-    prob = 0.5
-    [admix_buzz(prob, lines, buzz) for l in lines]
+    [admix_buzz(buzzwords_prob, lines, buzz) for l in lines]
+    # convert some strings to upper case
+    lines = [l.upper() if uniform(0, 1) < toupper_prob else l for l in lines]
     # make body file and write latex
-    lines = [l + "\\\\ \n" for l in lines if len(l) > 3]
+    lines = [l + " \n" for l in lines if len(l) > 3]
+    [admix_specialchar(lines) for l in lines]
+    #lines = [l for l in lines if len(l) > 3]
     with open(fbody, 'w') as bodyfile:
         bodyfile.write(" ".join(lines))
 
@@ -197,17 +240,33 @@ def create_rnd_body_file(fbody, nwords, nlines):
         bodyfile.write(" ".join(lines))
 
 
+def write_metadata(fdata):
+    with open(fdata + ".meta", 'w') as f:
+        f.write("# ***************************************************************** \n")
+        f.write("#  datagen input parameters for data: " + fdata + " \n")
+        f.write("# ***************************************************************** \n \n ")
+        f.write("Production Date: " + strftime("%d/%m/%Y %H:%M:%S", gmtime()) + "\n")
+        f.write(" buzzprob: " + str(buzzwords_prob) + "\n toupperprob: " + str(toupper_prob) + "\n \n")
+        f.write(" font_size: " + font_size + "\n")
+        f.write(" font_face: " + font_face + "\n")
+        f.write(" font_weight: " + font_weight + "\n")
+
+
 # generates latex file. Use pdflatex (not xelatex) to translate to pdf
-def generate_tex(font, randomize, fontstring):
+def generate_tex(fontface, fontsize, fontweight, randomize, fontstring):
+    font_size = fontsize
+    font_face = fontface
+    font_weight = fontweight
     if not randomize:
         create_body_file("./body.txt")
     else:
         create_rnd_body_file("./body.txt", nwords=3, nlines=50)
 
-    with open(font + ".tex", 'w') as texfile:
-        texfile.write(make_header(font))
+    with open(data_path + fontface + ".tex", 'w') as texfile:
+        texfile.write(make_header(fontface, fontsize, fontweight))
         if not randomize:
             texfile.write(make_body("./body.txt"))
         else:
             texfile.write(make_verbatim_body("./body.txt", fontstring))
         texfile.write(make_footer())
+    return texfile.name

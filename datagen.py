@@ -9,12 +9,32 @@ from time import gmtime, strftime
 from random import uniform, randint
 
 data_path = "./GDATA/"
+# fonts to run:
+# times-like: ptm, lmr
+# helvetica/arial: lmss, qhv, phv
+# typewriter: lmtt, qcr, pcr
+
+# with unicode euro sign, etc
+FONT_FACES = ["lmr", "lmss", "lmtt", "qcr"]
+
+
+# too many, for later finetuning
+#FONT_SIZES = ["tiny", "scriptsize", "footnotesize", 
+#              "small", "normalsize", "large", "Large",
+#              "LARGE", "huge", "Huge"]
+
+
+FONT_SIZES = ["tiny", "scriptsize", "normalsize", "Large", "huge"]
+
+FONT_WEIGHTS = ["regular", "italic", "bold", "italicbold"]
+
+rnd_seed = 3048678
 buzzwords_prob = 0.7
 toupper_prob = 0.15
-font_size = "tiny"
-font_face = "lmss"
-font_weight = "bold"
-# use only "bold" or "regular"
+
+
+def set_seed(seed):
+    random.seed(seed)
 
 
 def strTimeProp(start, end, format, prop):
@@ -42,7 +62,6 @@ def randomDateDot(start, end, prop):
 
 
 def generate_date():
-
     rndnum = uniform(0, 1)
     if rndnum <= 0.5:
         return randomDateSlash("1/1/1990", "1/1/2030", random.random())
@@ -75,15 +94,16 @@ def generate_name():
     if uniform(0, 1) <= 0.2:
         s = names[randint(0, len(names)-1)] + surnames[randint(0, len(surnames)-1)]
     else:
-        specchar = ["@", "\#", "\$", "\%", "\^", "\&", "\_", "\{", "\}", "*", "|"]
+        specchar = ["@", "\#", "\$", "\%", "\^", "\&", "\_", "\{", "\}", " \{", "\} ", "*", "|", "€ "]
         char = random.choice(specchar)
         s = names[randint(0, len(names)-1)].lower().strip(" ") + char + surnames[randint(0, len(surnames)-1)].lower().strip(" ")
     return s
 
 
 def generate_address():
-    s = streets[randint(0, len(streets)-1)] + ", " + places[randint(0, len(places)-1)].replace(";", ", ")
-    return s
+    prefix = [", ","-", " ", " D-"]
+    return streets[randint(0, len(streets)-1)] + ", " + places[randint(0, len(places)-1)].replace(";", random.choice(prefix))
+
 
 
 def generate_mail():
@@ -142,6 +162,12 @@ textwidth = {"tiny": 150,
 def make_header(fontface, fontsize, fontweight):
     if fontweight == "bold":
         fweight = "\\textbf{"
+    elif fontweight == "italic":
+        fweight = "\\textit{"
+    elif fontweight == "bolditalic":
+        fweight = "\\textit{ \\textbf{"
+    elif fontweight == "italicbold":
+        fweight = "\\textit{ \\textbf{"
     else:
         fweight = "{"
     header = (u"\\documentclass[10pt]{extarticle}\n"
@@ -180,8 +206,14 @@ def make_verbatim_body(bodylines, fontstring):
     return "\n \\verbatimfont{" + fontstring + "} \n \\verbatiminput{" + bodylines + "}"
 
 
-def make_footer():
-    return "\n } \n } \n } \n \\end{raggedright}\n\\end{document}"
+def make_footer(fontweight):
+    if fontweight == "bolditalic":
+        bclosed = "\n }"
+    elif fontweight == "italicbold":
+        bclosed = "\n }"
+    else:
+        bclosed = " "
+    return bclosed + "\n } \n } \n } \n \\end{raggedright}\n\\end{document}"
 
 
 # randomly adds some buzz words between regular text words
@@ -204,11 +236,12 @@ def admix_buzz(prob, lines, buzz):
 
 
 def admix_specialchar(lines):
+    specchars = ["\\textbackslash", " \\textbackslash ", "$\\mathrm{=}$"]
     if uniform(0, 1) <= 0.01:
         ind = randint(0, len(lines)-1)
         linesplit = lines[ind].split(' ')
         rndind = randint(0, len(linesplit)-1)
-        buzzstr = random.choice(["\\textbackslash", " \\textbackslash "])   
+        buzzstr = random.choice(specchars)   
         linesplit[rndind] = linesplit[rndind] + buzzstr
         lines[ind] = " ".join(linesplit)
 
@@ -241,32 +274,35 @@ def create_rnd_body_file(fbody, nwords, nlines):
 
 
 def write_metadata(fdata):
-    with open(fdata + ".meta", 'w') as f:
+    success = subprocess.call(shlex.split("pdflatex -output-directory " + data_path + " " + fdata[0]))
+    ifpdf = True if success==0 else False
+    with open(str(fdata[0]) + ".meta", 'w') as f:
         f.write("# ***************************************************************** \n")
-        f.write("#  datagen input parameters for data: " + fdata + " \n")
+        f.write("#  datagen input parameters for data: " + fdata[0] + " \n")
         f.write("# ***************************************************************** \n \n ")
         f.write("Production Date: " + strftime("%d/%m/%Y %H:%M:%S", gmtime()) + "\n")
-        f.write(" buzzprob: " + str(buzzwords_prob) + "\n toupperprob: " + str(toupper_prob) + "\n \n")
-        f.write(" font_size: " + font_size + "\n")
-        f.write(" font_face: " + font_face + "\n")
-        f.write(" font_weight: " + font_weight + "\n")
+        f.write(" rnd_seed: " + str(rnd_seed) + "\n")
+        f.write(" pdf success: " + str(ifpdf) + "\n \n")
+        f.write(" buzzwords_prob: " + str(buzzwords_prob) + "\n toupper_prob: " + str(toupper_prob) + "\n \n")
+        f.write(" font_size: " + fdata[2] + "\n")
+        f.write(" font_face: " + fdata[1] + "\n")
+        f.write(" font_weight: " + fdata[3] + "\n \n \n")
 
 
 # generates latex file. Use pdflatex (not xelatex) to translate to pdf
 def generate_tex(fontface, fontsize, fontweight, randomize, fontstring):
-    font_size = fontsize
-    font_face = fontface
-    font_weight = fontweight
+    set_seed(rnd_seed)
     if not randomize:
         create_body_file("./body.txt")
     else:
         create_rnd_body_file("./body.txt", nwords=3, nlines=50)
-
-    with open(data_path + fontface + ".tex", 'w') as texfile:
+    
+    fname = data_path + fontface + "_" + fontsize + "_" + fontweight + ".tex"
+    with open(fname, 'w') as texfile:
         texfile.write(make_header(fontface, fontsize, fontweight))
         if not randomize:
             texfile.write(make_body("./body.txt"))
         else:
             texfile.write(make_verbatim_body("./body.txt", fontstring))
-        texfile.write(make_footer())
-    return texfile.name
+        texfile.write(make_footer(fontweight))
+    return [texfile.name, fontface, fontsize, fontweight]

@@ -14,19 +14,23 @@ data_path = "./GDATA/"
 # helvetica/arial: lmss, qhv, phv
 # typewriter: lmtt, qcr, pcr
 
-# with unicode euro sign, etc
-FONT_FACES = ["lmr", "lmss", "lmtt", "qcr"]
-
-
 # too many, for later finetuning
 #FONT_SIZES = ["tiny", "scriptsize", "footnotesize", 
 #              "small", "normalsize", "large", "Large",
 #              "LARGE", "huge", "Huge"]
 
 
+# with unicode euro sign, etc
+FONT_FACES = ["lmr", "lmss", "lmtt", "qcr"]
+
 FONT_SIZES = ["tiny", "scriptsize", "normalsize", "Large", "huge"]
 
 FONT_WEIGHTS = ["regular", "italic", "bold", "italicbold"]
+
+
+#FONT_FACES = ["lmss"]
+#FONT_SIZES = ["Huge"]
+#FONT_WEIGHTS = ["bold"]
 
 rnd_seed = 3048678
 buzzwords_prob = 0.7
@@ -147,16 +151,17 @@ def set_font_size():
 #                              main_memory = 10000000
 #                       > fmtutil-sys --all
 # textwidth tuning for different fontsizes(latex notation)
-textwidth = {"tiny": 150,
-             "scriptsize": 1.1*150,
-             "footnotesize": 1.2*150,
-             "small": 1.3*150,
-             "normalsize": 1.4*150,
-             "large": 1.5*150,
-             "Large": 1.7*150,
-             "LARGE": 1.8*150,
-             "huge": 2.0*150,
-             "Huge": 2.1*150}
+basewidth = 170
+textwidth = {"tiny": basewidth,
+             "scriptsize": 1.1*basewidth,
+             "footnotesize": 1.2*basewidth,
+             "small": 1.3*basewidth,
+             "normalsize": 1.4*basewidth,
+             "large": 1.5*basewidth,
+             "Large": 1.7*basewidth,
+             "LARGE": 1.8*basewidth,
+             "huge": 2.1*basewidth,
+             "Huge": 2.2*basewidth}
 
 
 def make_header(fontface, fontsize, fontweight):
@@ -175,7 +180,7 @@ def make_header(fontface, fontsize, fontweight):
               "\\usepackage[utf8]{inputenc}\n"
               "\\usepackage{verbatim}\n"
               #"\\usepackage[none]{hyphenat} \n"
-              "\\usepackage[paperheight=10.75in,paperwidth=8.25in,margin=1in,heightrounded]{geometry}\n"
+              "\\usepackage[paperheight=11.692in, paperwidth=8.267in,margin=1in,heightrounded]{geometry}\n"
               "\\geometry{textwidth=6cm}\n"
               #"\\usepackage{eurosym}\n"
               #"\\usepackage{tgbonum}\n"
@@ -191,7 +196,7 @@ def make_header(fontface, fontsize, fontweight):
               "\\pagenumbering{gobble}\n")
     #header = header + "\\renewcommand{\\baselinestretch}{" + str(linespace[fontsize]) + "}\n "
     header = header + "\\renewcommand{\\baselinestretch}{1.3}\n "
-    header = header + "\\textwidth " + str(textwidth[fontsize]) + "pt \\begin{document}\n"
+    header = header + "\\textwidth " + str(textwidth[fontsize]) + "pt \\begin{document} \n \\setlength{\parfillskip}{500pt} \n"
     header = header + "\\begin{raggedright} {\\fontfamily{" + fontface + "}\\selectfont\n {\\" + fontsize
     header = header + fweight
     return header
@@ -259,18 +264,26 @@ def create_body_file(fbody):
     # convert some strings to upper case
     lines = [l.upper() if uniform(0, 1) < toupper_prob else l for l in lines]
     # make body file and write latex
-    lines = [l + " \n" for l in lines if len(l) > 3]
+    lines = [l + " \n" for l in lines if len(l) > 4]
     [admix_specialchar(lines) for l in lines]
+    #lines = [l.replace(".",".\\") for l in lines if len(l) > 3]
     #lines = [l for l in lines if len(l) > 3]
     with open(fbody, 'w') as bodyfile:
-        bodyfile.write(" ".join(lines))
+        bodyfile.write((" ".join(lines)
+                           .replace(". ",".\@ ")
+                           .replace(": ",":\@ ")
+                           .replace("; ",";\@ ")
+                           .replace("! ","!\@ ")
+                           .replace("? ","?\@ ")
+                        ))
 
 
 def create_rnd_body_file(fbody, nwords, nlines):
     lines = generate_utf_body(nwords, nlines)
     lines = [l + "\n" for l in lines if len(l) > 3]
+    #lines = [l.replace(".","!") for l in lines if len(l) > 3]
     with open(fbody, 'w') as bodyfile:
-        bodyfile.write(" ".join(lines))
+        bodyfile.write(" ".join(lines))#.replace("\\", " "))
 
 
 def write_metadata(fdata):

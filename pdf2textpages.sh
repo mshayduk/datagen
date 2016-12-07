@@ -4,7 +4,7 @@ if [ "$1" == "-h" ]; then
   echo "Usage: `basename $0` [filename.pdf]"
   exit 0
 fi
-datagensys="/home/maxim/Projects/Doker/sandbox/traindatagen/python/"
+datagensys="./"
 datadir=$(dirname "$1")
 filename=$(basename "$1")
 extension="${filename##*.}"

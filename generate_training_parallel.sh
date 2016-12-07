@@ -9,20 +9,20 @@ fi
 #useful trick: passes result of find to identify
 # find ./0246/*.png -print0 | xargs -0 identify
 
-mkdir -p $1'/book/'
+#mkdir -p $1'/book/'
 
 prefix=`echo $1 | sed -e "s/\_pages\/$//" | awk -F '/' '{print $NF}'`
 echo $prefix
 
 # binarize pages (no skew is assumed, no fancy threshold estimation)
-echo 'binarization in $1 '
+#echo 'binarization in $1 '
 #ocropus-nlbin -n --maxskew 0 --escale 0 --lo 0 --hi 1 --parallel 6 $1/$prefix-????.png -o $1'/book/'
 #exit
 
 # segment pages (only one column assumed, no noise removal )
-echo 'segmentation in $1'
-ocropus-gpageseg -n --maxseps 0 --maxcolseps 0 --minscale 10 --noise 0 --parallel 5 $1'/book/????.bin.png'
-exit
+#echo 'segmentation in $1'
+#ocropus-gpageseg -n --maxseps 0 --maxcolseps 0 --minscale 10 --noise 0 --parallel 5 $1'/book/????.bin.png'
+#exit
 #ocropus-gpageseg -n --maxseps 0 --maxcolseps 0 --csminheight 90 --minscale 10 --noise 0 --parallel 6 './GDATA/qcr_tiny_regular_pages/book/????.bin.png'
 
 # make ground truth text

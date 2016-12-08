@@ -21,6 +21,9 @@ for b in $(ls -p $1/'book/' | grep '/');
 		
 		#skip pages with number of segments not equal to the number of lines
 		nsnippets=$(ls -1 $1/book/$b/*bin.png | wc -l)
+		# remove blanck lines
+		cat $txt | sed '/ˆ$/d' > out.txt
+		cat out.txt > $txt 
 		nlines=$(cat $txt | wc -l)	
 		if [ $nsnippets != $nlines ]; then
 			continue

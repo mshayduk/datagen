@@ -1,6 +1,5 @@
 import sys
 from skimage import io, util, filters
-#import numpy as np
 import random
 from random import uniform, randint
 

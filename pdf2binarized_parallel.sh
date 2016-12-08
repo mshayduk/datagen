@@ -16,13 +16,11 @@ npages=$(($npages-$droplast-1))
 
 mkdir -p $datadir'/'$name'_pages_bin'
 mkdir -p $datadir'/'$name'_pages_bin/book/'
-#find $name'_pages/*' -print0 | xargs -0 rm -rv
 cp $1 $datadir'/'$name'_pages_bin'
+
+# change workingdir to the pages directory
 cd $datadir'/'$name'_pages_bin'
-
-# coverting in parallel:
-# find . -name '*-000*.pdf' | parallel --no-notice -j 4 convert -density 300 {} {}.png
-
+# loop ove pdf files (usually only one )
 for f in $1;
 	do
     	page=0
@@ -46,9 +44,7 @@ for f in $1;
     	find . -name '*-*.jpg' | parallel --no-notice -j6 convert -density 300 {} {}.png
     	rename 's/\.jpg\.png/\.png/g' *.jpg.png
     	
-    	#find . -name '*-*.pdf' | parallel --no-notice -j4 echo {} $name
-    	
-
+    	#page binarization and segmentation
     	ocropus-nlbin -n --maxskew 0 --parallel 6 './'$name-????.png -o './book/'
     	rm *.png
     	rm *.jpg
